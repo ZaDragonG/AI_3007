@@ -145,6 +145,62 @@ def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit
     
     return False, parent  # Goal not found
 
+def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit):
+    print("path:")
+    if path_positions is None:
+        print("null")
+    else:
+        path_set = set(path_positions)
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if M[r][c] == 'X':
+                    row.append('X')
+                else:
+                    row.append('*' if (r+1, c+1) in path_set else M[r][c])
+            print(" ".join(row))
+    print("#visits:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
+            else:
+                row.append(str(visit_count[r][c]) if visit_count[r][c] != 0 else '.')
+        print(" ".join(row))
+    print("first visit:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
+            else:
+                row.append(str(first_visit[r][c]) if first_visit[r][c] != 0 else '.')
+        print(" ".join(row))
+    print("last visit:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
+            else:
+                row.append(str(last_visit[r][c]) if last_visit[r][c] != 0 else '.')
+        print(" ".join(row))
+
+def print_release_output(rows, cols, M, path_positions):
+    if path_positions is None:
+        print("null")
+    else:
+        path_set = set(path_positions)
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if M[r][c] == 'X':
+                    row.append('X')
+                else:
+                    row.append('*' if (r+1, c+1) in path_set else M[r][c])
+            print(" ".join(row))
+
 # Main function to execute the search algorithm
 def main():
     if len(sys.argv) < 4:
