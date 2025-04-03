@@ -1,149 +1,142 @@
-
-
+#!/usr/bin/env python3
 import sys
 import math
 import heapq
 import numpy as np
 from collections import deque
 
-# Student details
 STUDENT_ID = 'a1889102'
 DEGREE = 'UG'
 
-# Function to parse the map file
 def parse_map_file(filepath):
     with open(filepath, 'r') as f:
-        rows, cols = map(int, f.readline().strip().split())  # Grid dimensions
-        start = tuple(map(int, f.readline().strip().split()))  # Start position
-        goal = tuple(map(int, f.readline().strip().split()))  # Goal position
-        M = []  # Initialize the map
-        
+        rows, cols = map(int, f.readline().strip().split())
+        start = tuple(map(int, f.readline().strip().split()))
+        goal = tuple(map(int, f.readline().strip().split()))
+        M = []
         for _ in range(rows):
-            M.append(f.readline().rstrip('\n').split())  # Read grid rows
-    
+            M.append(f.readline().rstrip('\n').split())
     return rows, cols, start, goal, M
 
-# Function to calculate the cost of moving between two cells
 def cost_function(M, r1, c1, r2, c2):
-    elev1 = int(M[r1 - 1][c1 - 1])  # Elevation of first cell
-    elev2 = int(M[r2 - 1][c2 - 1])  # Elevation of second cell
-    return 1 + max(0, elev2 - elev1)  # Base cost + elevation penalty
+    elev1 = int(M[r1-1][c1-1])
+    elev2 = int(M[r2-1][c2-1])
+    return 1 + max(0, elev2 - elev1)
 
-# Manhattan heuristic for A* algorithm
 def manhattan_heuristic(current, goal):
     (r1, c1), (r2, c2) = current, goal
     return abs(r2 - r1) + abs(c2 - c1)
 
-# Euclidean heuristic for A* algorithm
 def euclidean_heuristic(current, goal):
     (r1, c1), (r2, c2) = current, goal
-    return math.sqrt((r2 - r1) ** 2 + (c2 - c1) ** 2)
+    return math.sqrt((r2 - r1)**2 + (c2 - c1)**2)
 
-# Reconstruct the path from the parent dictionary
 def reconstruct_path(parent, start, goal):
-    if goal not in parent:
-        return None  # Goal not reachable
-    
+    if goal not in parent: return None
     path = []
     curr = goal
-    
     while curr is not None:
         path.append(curr)
-        curr = parent[curr]  # Backtrack from goal to start
-    
-    return list(reversed(path))  # Reverse to get correct order
+        curr = parent[curr]
+    return list(reversed(path))
 
-# Get all valid neighboring cells
 def neighbors(r, c, rows, cols, M):
-    candidates = [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]  # N, S, W, E
-    valid_neighbors = []
-    
-    for rr, cc in candidates:
-        if 1 <= rr <= rows and 1 <= cc <= cols and M[rr - 1][cc - 1] != 'X':
-            valid_neighbors.append((rr, cc))
-    
-    return valid_neighbors
+    cand = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+    valid = []
+    for rr, cc in cand:
+        if 1 <= rr <= rows and 1 <= cc <= cols:
+            if M[rr-1][cc-1] != 'X':
+                valid.append((rr, cc))
+    return valid
 
-# Breadth-First Search (BFS) algorithm
 def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
     q = deque()
     q.append(start)
     parent = {start: None}
-    counter = 1
-    
+    counter = 0
     r, c = start
-    visit_count[r - 1][c - 1] += 1
-    first_visit[r - 1][c - 1] = counter
-    last_visit[r - 1][c - 1] = counter
-    
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter
     while q:
         current = q.popleft()
-        
-        if current == goal:
-            return True, parent  # Goal found
-        
+        if current == goal: return True, parent
         cr, cc = current
-        
         for nbr in neighbors(cr, cc, rows, cols, M):
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
             if nbr not in parent:
                 parent[nbr] = current
                 q.append(nbr)
-    
-    return False, parent  # Goal not found
+    return False, parent
 
-# Uniform Cost Search (UCS) algorithm
 def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
     pq = []
-    heapq.heappush(pq, (0, 0, start))  # Min heap
+    tiebreaker = 0
+    heapq.heappush(pq, (0, tiebreaker, start))
     parent = {start: None}
     cost_so_far = {start: 0}
-    
+    counter = 0
+    r, c = start
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter
     while pq:
         curr_cost, _, current = heapq.heappop(pq)
-        
-        if current == goal:
-            return True, parent  # Goal found
-        
+        if current == goal: return True, parent
         cr, cc = current
-        
         for nbr in neighbors(cr, cc, rows, cols, M):
             step = cost_function(M, cr, cc, nbr[0], nbr[1])
             new_cost = curr_cost + step
-            
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
             if nbr not in cost_so_far or new_cost < cost_so_far[nbr]:
                 cost_so_far[nbr] = new_cost
                 parent[nbr] = current
-                heapq.heappush(pq, (new_cost, _, nbr))
-    
-    return False, parent  # Goal not found
+                tiebreaker += 1
+                heapq.heappush(pq, (new_cost, tiebreaker, nbr))
+    return False, parent
 
-# A* Search algorithm
 def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit, last_visit):
     pq = []
+    tiebreaker = 0
     h = heuristic(start, goal)
-    heapq.heappush(pq, (h, 0, 0, start))
+    heapq.heappush(pq, (h, tiebreaker, 0, start))
     parent = {start: None}
     cost_so_far = {start: 0}
-    
+    counter = 0
+    r, c = start
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter
     while pq:
         f, _, g, current = heapq.heappop(pq)
-        
-        if current == goal:
-            return True, parent  # Goal found
-        
+        if current == goal: return True, parent
         cr, cc = current
-        
         for nbr in neighbors(cr, cc, rows, cols, M):
             step = cost_function(M, cr, cc, nbr[0], nbr[1])
             new_g = g + step
-            
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
             if nbr not in cost_so_far or new_g < cost_so_far[nbr]:
                 cost_so_far[nbr] = new_g
                 parent[nbr] = current
+                tiebreaker += 1
                 new_f = new_g + heuristic(nbr, goal)
-                heapq.heappush(pq, (new_f, _, new_g, nbr))
-    
-    return False, parent  # Goal not found
+                heapq.heappush(pq, (new_f, tiebreaker, new_g, nbr))
+    return False, parent
 
 def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit):
     print("path:")
@@ -201,40 +194,45 @@ def print_release_output(rows, cols, M, path_positions):
                     row.append('*' if (r+1, c+1) in path_set else M[r][c])
             print(" ".join(row))
 
-# Main function to execute the search algorithm
 def main():
     if len(sys.argv) < 4:
         print("Usage: python pathfinder.py [mode] [mapfile] [algorithm] [heuristic]")
         sys.exit(1)
-    
     mode = sys.argv[1]
     mapfile = sys.argv[2]
     algorithm = sys.argv[3]
-    
     if algorithm == 'astar':
         if len(sys.argv) < 5:
-            print("For A*, please provide a heuristic: euclidean or manhattan.")
+            print("For astar, please provide a heuristic: euclidean or manhattan.")
             sys.exit(1)
-        
-        heuristic_fn = manhattan_heuristic if sys.argv[4] == 'manhattan' else euclidean_heuristic
+        heuristic_name = sys.argv[4]
+        if heuristic_name == 'euclidean':
+            heuristic_fn = euclidean_heuristic
+        elif heuristic_name == 'manhattan':
+            heuristic_fn = manhattan_heuristic
+        else:
+            print("Unknown heuristic. Use 'euclidean' or 'manhattan'.")
+            sys.exit(1)
     else:
         heuristic_fn = None
-    
     rows, cols, start, goal, M = parse_map_file(mapfile)
     visit_count = np.zeros((rows, cols), dtype=int)
     first_visit = np.zeros((rows, cols), dtype=int)
     last_visit = np.zeros((rows, cols), dtype=int)
-    
-    search_algorithms = {'bfs': bfs_search, 'ucs': ucs_search, 'astar': astar_search}
-    
-    if algorithm in search_algorithms:
-        found, parent = search_algorithms[algorithm](rows, cols, M, start, goal, heuristic_fn, visit_count, first_visit, last_visit)
+    if algorithm == 'bfs':
+        found, parent = bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
+    elif algorithm == 'ucs':
+        found, parent = ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
+    elif algorithm == 'astar':
+        found, parent = astar_search(rows, cols, M, start, goal, heuristic_fn, visit_count, first_visit, last_visit)
     else:
-        print("Unknown algorithm.")
+        print("Unknown algorithm. Use 'bfs', 'ucs', or 'astar'.")
         sys.exit(1)
-    
     path_positions = reconstruct_path(parent, start, goal) if found else None
-    print(path_positions)
+    if mode == 'debug':
+        print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit)
+    else:
+        print_release_output(rows, cols, M, path_positions)
 
 if __name__ == "__main__":
     main()
