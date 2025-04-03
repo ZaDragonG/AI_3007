@@ -5,51 +5,63 @@ import heapq
 import numpy as np
 from collections import deque
 
+#student details
 STUDENT_ID = 'a1889102'
 DEGREE = 'UG'
 
+#Function to parse through the input map and get the necessary info
 def parse_map_file(filepath):
     with open(filepath, 'r') as f:
-        rows, cols = map(int, f.readline().strip().split())
-        start = tuple(map(int, f.readline().strip().split()))
-        goal = tuple(map(int, f.readline().strip().split()))
+
+        rows, cols = map(int, f.readline().strip().split()) #grid size
+        start = tuple(map(int, f.readline().strip().split())) #get the start position
+        goal = tuple(map(int, f.readline().strip().split()))    #get the end position
         M = []
+        
         for _ in range(rows):
             M.append(f.readline().rstrip('\n').split())
     return rows, cols, start, goal, M
 
+#Function to calc the cost to move from one point to another
 def cost_function(M, r1, c1, r2, c2):
-    elev1 = int(M[r1-1][c1-1])
-    elev2 = int(M[r2-1][c2-1])
+    elev1 = int(M[r1-1][c1-1])  # elevation of first point
+    elev2 = int(M[r2-1][c2-1])  #elevation of second point
     return 1 + max(0, elev2 - elev1)
 
+#function for th emanhattan heuristic for a* algo
 def manhattan_heuristic(current, goal):
     (r1, c1), (r2, c2) = current, goal
     return abs(r2 - r1) + abs(c2 - c1)
 
+#function for the eucilidean hueristic for the a* algo
 def euclidean_heuristic(current, goal):
     (r1, c1), (r2, c2) = current, goal
     return math.sqrt((r2 - r1)**2 + (c2 - c1)**2)
 
+#function to reconstruct the path from the start to the goal using the parent cell
 def reconstruct_path(parent, start, goal):
-    if goal not in parent: return None
+    if goal not in parent: return None  #no path is found since there is no goal
     path = []
     curr = goal
     while curr is not None:
         path.append(curr)
-        curr = parent[curr]
-    return list(reversed(path))
+        curr = parent[curr] #traverse from them goal to the start
+    return list(reversed(path)) #therefore u need to reverse the order to get the correct path
 
+#function to get the vaild neighbour cells that are n,e,s,w from the current node
 def neighbors(r, c, rows, cols, M):
-    cand = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)]
+    cand = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)] #adding one or subtracting one from the cell coords
     valid = []
     for rr, cc in cand:
         if 1 <= rr <= rows and 1 <= cc <= cols:
-            if M[rr-1][cc-1] != 'X':
+            if M[rr-1][cc-1] != 'X':    #don't go onto cells with 'X'
                 valid.append((rr, cc))
     return valid
 
+
+#breath first search function
 def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
+    #set up all variables, queue, start cells and visited_count
     q = deque()
     q.append(start)
     parent = {start: None}
@@ -59,9 +71,9 @@ def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
     visit_count[r-1][c-1] += 1
     if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
     last_visit[r-1][c-1] = counter
-    while q:
+    while q:                        #iterate through the queue
         current = q.popleft()
-        if current == goal: return True, parent
+        if current == goal: return True, parent     #check for goal, otherwise keep iterating
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
             r, c = nbr
@@ -72,9 +84,11 @@ def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
             if nbr not in parent:
                 parent[nbr] = current
                 q.append(nbr)
-    return False, parent
+    return False, parent        #no goal found
 
+#union cost search
 def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
+    #set variables, queue, visted
     pq = []
     tiebreaker = 0
     heapq.heappush(pq, (0, tiebreaker, start))
@@ -85,10 +99,10 @@ def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
     counter += 1
     visit_count[r-1][c-1] += 1
     if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-    last_visit[r-1][c-1] = counter
-    while pq:
+    last_visit[r-1][c-1] = counter      
+    while pq:                   #iterate through minheap
         curr_cost, _, current = heapq.heappop(pq)
-        if current == goal: return True, parent
+        if current == goal: return True, parent     #found goal, otherwise keep iterating thorugh heap
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
             step = cost_function(M, cr, cc, nbr[0], nbr[1])
@@ -103,9 +117,11 @@ def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
                 parent[nbr] = current
                 tiebreaker += 1
                 heapq.heappush(pq, (new_cost, tiebreaker, nbr))
-    return False, parent
+    return False, parent        #goal not found
 
+#a* algo
 def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit, last_visit):
+    #set up varibales
     pq = []
     tiebreaker = 0
     h = heuristic(start, goal)
@@ -118,9 +134,9 @@ def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit
     visit_count[r-1][c-1] += 1
     if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
     last_visit[r-1][c-1] = counter
-    while pq:
+    while pq:       #itetate through heap
         f, _, g, current = heapq.heappop(pq)
-        if current == goal: return True, parent
+        if current == goal: return True, parent         #goal found, otherwise keep iterating through heap
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
             step = cost_function(M, cr, cc, nbr[0], nbr[1])
@@ -136,7 +152,7 @@ def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit
                 tiebreaker += 1
                 new_f = new_g + heuristic(nbr, goal)
                 heapq.heappush(pq, (new_f, tiebreaker, new_g, nbr))
-    return False, parent
+    return False, parent        #no goal found
 
 def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit):
     print("path:")
