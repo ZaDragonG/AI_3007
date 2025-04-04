@@ -10,211 +10,205 @@ STUDENT_ID = 'a1889102'
 DEGREE = 'UG'
 
 #Function to parse through the input map and get the necessary info
-def load_map_data(filepath):
-    with open(filepath, 'r') as file:
+def parse_map_file(filepath):
+    with open(filepath, 'r') as f:
+
+        rows, cols = map(int, f.readline().strip().split()) #grid size
+        start = tuple(map(int, f.readline().strip().split())) #get the start position
+        goal = tuple(map(int, f.readline().strip().split()))    #get the end position
+        M = []
         
-        grid_rows, grid_cols = map(int, file.readline().strip().split()) #grid size
-        start_point = tuple(map(int, file.readline().strip().split())) #get the start position
-        goal_point = tuple(map(int, file.readline().strip().split()))    #get the end position
-        grid_map = []
-        
-        for _ in range(grid_rows):
-            grid_map.append(file.readline().rstrip('\n').split())
-    return grid_rows, grid_cols, start_point, goal_point, grid_map
+        for _ in range(rows):
+            M.append(f.readline().rstrip('\n').split())
+    return rows, cols, start, goal, M
 
 #Function to calc the cost to move from one point to another
-def movement_cost(grid_map, row1, col1, row2, col2):
-    elevation_1 = int(grid_map[row1-1][col1-1])  # elevation of first point
-    elevation_2 = int(grid_map[row2-1][col2-1])  #elevation of second point
-    return 1 + max(0, elevation_2 - elevation_1)
+def cost_function(M, r1, c1, r2, c2):
+    elev1 = int(M[r1-1][c1-1])  # elevation of first point
+    elev2 = int(M[r2-1][c2-1])  #elevation of second point
+    return 1 + max(0, elev2 - elev1)
 
-#function for the manhattan heuristic for a* algo
-def manhattan_distance(node, destination):
-    (row1, col1), (row2, col2) = node, destination
-    return abs(row2 - row1) + abs(col2 - col1)
+#function for th emanhattan heuristic for a* algo
+def manhattan_heuristic(current, goal):
+    (r1, c1), (r2, c2) = current, goal
+    return abs(r2 - r1) + abs(c2 - c1)
 
-#function for the euclidean heuristic for the a* algo
-def euclidean_distance(node, destination):
-    (row1, col1), (row2, col2) = node, destination
-    return math.sqrt((row2 - row1)**2 + (col2 - col1)**2)
+#function for the eucilidean hueristic for the a* algo
+def euclidean_heuristic(current, goal):
+    (r1, c1), (r2, c2) = current, goal
+    return math.sqrt((r2 - r1)**2 + (c2 - c1)**2)
 
 #function to reconstruct the path from the start to the goal using the parent cell
-def backtrack_path(parents, start_point, goal_point):
-    if goal_point not in parents: return None  #no path is found since there is no goal
-    path_sequence = []
-    current = goal_point
-    while current is not None:
-        path_sequence.append(current)
-        current = parents[current] #traverse from the goal to the start
-    return list(reversed(path_sequence)) #reverse to get the correct order
+def reconstruct_path(parent, start, goal):
+    if goal not in parent: return None  #no path is found since there is no goal
+    path = []
+    curr = goal
+    while curr is not None:
+        path.append(curr)
+        curr = parent[curr] #traverse from them goal to the start
+    return list(reversed(path)) #therefore u need to reverse the order to get the correct path
 
-#function to get the valid neighbor cells that are n,e,s,w from the current node
-def get_neighbors(row, col, grid_rows, grid_cols, grid_map):
-    candidates = [(row-1, col), (row+1, col), (row, col-1), (row, col+1)]
-    valid_neighbors = []
-    for r, c in candidates:
-        if 1 <= r <= grid_rows and 1 <= c <= grid_cols:
-            if grid_map[r-1][c-1] != 'X':  #avoid cells with 'X'
-                valid_neighbors.append((r, c))
-    return valid_neighbors
+#function to get the vaild neighbour cells that are n,e,s,w from the current node
+def neighbors(r, c, rows, cols, M):
+    cand = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)] #adding one or subtracting one from the cell coords
+    valid = []
+    for rr, cc in cand:
+        if 1 <= rr <= rows and 1 <= cc <= cols:
+            if M[rr-1][cc-1] != 'X':    #don't go onto cells with 'X'
+                valid.append((rr, cc))
+    return valid
 
-#breadth-first search function
-def bfs_search(grid_rows, grid_cols, grid_map, start_point, goal_point, visit_tracker, first_seen, last_seen):
-    queue = deque()
-    queue.append(start_point)
-    parent_nodes = {start_point: None}
-    visit_counter = 0
-    row, col = start_point
-    visit_counter += 1
-    visit_tracker[row-1][col-1] += 1
-    if first_seen[row-1][col-1] == 0: first_seen[row-1][col-1] = visit_counter
-    last_seen[row-1][col-1] = visit_counter
-    while queue:
-        current = queue.popleft()
-        if current == goal_point: return True, parent_nodes
+
+#breath first search function
+def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
+    #set up all variables, queue, start cells and visited_count
+    q = deque()
+    q.append(start)
+    parent = {start: None}
+    counter = 0
+    r, c = start
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter
+    while q:                        #iterate through the queue
+        current = q.popleft()
+        if current == goal: return True, parent     #check for goal, otherwise keep iterating
         cr, cc = current
-        for neighbor in get_neighbors(cr, cc, grid_rows, grid_cols, grid_map):
-            r, c = neighbor
-            visit_counter += 1
-            visit_tracker[r-1][c-1] += 1
-            if first_seen[r-1][c-1] == 0: first_seen[r-1][c-1] = visit_counter
-            last_seen[r-1][c-1] = visit_counter
-            if neighbor not in parent_nodes:
-                parent_nodes[neighbor] = current
-                queue.append(neighbor)
-    return False, parent_nodes        #no goal found
+        for nbr in neighbors(cr, cc, rows, cols, M):
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
+            if nbr not in parent:
+                parent[nbr] = current
+                q.append(nbr)
+    return False, parent        #no goal found
 
-# Uniform Cost Search
-def ucs_search(num_rows, num_cols, grid, start_pos, goal_pos, visit_tracker, first_visit_log, last_visit_log):
-    # Set variables, queue, visited
-    priority_queue = []
-    tie_resolver = 0
-    heapq.heappush(priority_queue, (0, tie_resolver, start_pos))
-    path_parent = {start_pos: None}
-    min_cost = {start_pos: 0}
-    visit_order = 0
-    row, col = start_pos
-    visit_order += 1
-    visit_tracker[row-1][col-1] += 1
-    if first_visit_log[row-1][col-1] == 0: first_visit_log[row-1][col-1] = visit_order
-    last_visit_log[row-1][col-1] = visit_order      
-    while priority_queue:  # Iterate through min heap
-        current_cost, _, current_pos = heapq.heappop(priority_queue)
-        if current_pos == goal_pos: return True, path_parent  # Found goal, otherwise keep iterating through heap
-        curr_row, curr_col = current_pos
-        for neighbor in neighbors(curr_row, curr_col, num_rows, num_cols, grid):
-            step_cost = cost_function(grid, curr_row, curr_col, neighbor[0], neighbor[1])
-            total_cost = current_cost + step_cost
-            row, col = neighbor
-            visit_order += 1
-            visit_tracker[row-1][col-1] += 1
-            if first_visit_log[row-1][col-1] == 0: first_visit_log[row-1][col-1] = visit_order
-            last_visit_log[row-1][col-1] = visit_order
-            if neighbor not in min_cost or total_cost < min_cost[neighbor]:
-                min_cost[neighbor] = total_cost
-                path_parent[neighbor] = current_pos
-                tie_resolver += 1
-                heapq.heappush(priority_queue, (total_cost, tie_resolver, neighbor))
-    return False, path_parent  # Goal not found
+#union cost search
+def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
+    #set variables, queue, visted
+    pq = []
+    tiebreaker = 0
+    heapq.heappush(pq, (0, tiebreaker, start))
+    parent = {start: None}
+    cost_so_far = {start: 0}
+    counter = 0
+    r, c = start
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter      
+    while pq:                   #iterate through minheap
+        curr_cost, _, current = heapq.heappop(pq)
+        if current == goal: return True, parent     #found goal, otherwise keep iterating thorugh heap
+        cr, cc = current
+        for nbr in neighbors(cr, cc, rows, cols, M):
+            step = cost_function(M, cr, cc, nbr[0], nbr[1])
+            new_cost = curr_cost + step
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
+            if nbr not in cost_so_far or new_cost < cost_so_far[nbr]:
+                cost_so_far[nbr] = new_cost
+                parent[nbr] = current
+                tiebreaker += 1
+                heapq.heappush(pq, (new_cost, tiebreaker, nbr))
+    return False, parent        #goal not found
 
-# A* Algorithm
-def astar_search(num_rows, num_cols, grid, start_pos, goal_pos, heuristic_fn, visit_tracker, first_visit_log, last_visit_log):
-    # Set up variables
-    priority_queue = []
-    tie_resolver = 0
-    heuristic_value = heuristic_fn(start_pos, goal_pos)
-    heapq.heappush(priority_queue, (heuristic_value, tie_resolver, 0, start_pos))
-    path_parent = {start_pos: None}
-    min_cost = {start_pos: 0}
-    visit_order = 0
-    row, col = start_pos
-    visit_order += 1
-    visit_tracker[row-1][col-1] += 1
-    if first_visit_log[row-1][col-1] == 0: first_visit_log[row-1][col-1] = visit_order
-    last_visit_log[row-1][col-1] = visit_order
-    while priority_queue:  # Iterate through heap
-        f_value, _, g_value, current_pos = heapq.heappop(priority_queue)
-        if current_pos == goal_pos: return True, path_parent  # Goal found, otherwise keep iterating through heap
-        curr_row, curr_col = current_pos
-        for neighbor in neighbors(curr_row, curr_col, num_rows, num_cols, grid):
-            step_cost = cost_function(grid, curr_row, curr_col, neighbor[0], neighbor[1])
-            new_g_value = g_value + step_cost
-            row, col = neighbor
-            visit_order += 1
-            visit_tracker[row-1][col-1] += 1
-            if first_visit_log[row-1][col-1] == 0: first_visit_log[row-1][col-1] = visit_order
-            last_visit_log[row-1][col-1] = visit_order
-            if neighbor not in min_cost or new_g_value < min_cost[neighbor]:
-                min_cost[neighbor] = new_g_value
-                path_parent[neighbor] = current_pos
-                tie_resolver += 1
-                new_f_value = new_g_value + heuristic_fn(neighbor, goal_pos)
-                heapq.heappush(priority_queue, (new_f_value, tie_resolver, new_g_value, neighbor))
-    return False, path_parent  # No goal found
+#a* algo
+def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit, last_visit):
+    #set up varibales
+    pq = []
+    tiebreaker = 0
+    h = heuristic(start, goal)
+    heapq.heappush(pq, (h, tiebreaker, 0, start))
+    parent = {start: None}
+    cost_so_far = {start: 0}
+    counter = 0
+    r, c = start
+    counter += 1
+    visit_count[r-1][c-1] += 1
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+    last_visit[r-1][c-1] = counter
+    while pq:       #itetate through heap
+        f, _, g, current = heapq.heappop(pq)
+        if current == goal: return True, parent         #goal found, otherwise keep iterating through heap
+        cr, cc = current
+        for nbr in neighbors(cr, cc, rows, cols, M):
+            step = cost_function(M, cr, cc, nbr[0], nbr[1])
+            new_g = g + step
+            r, c = nbr
+            counter += 1
+            visit_count[r-1][c-1] += 1
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
+            last_visit[r-1][c-1] = counter
+            if nbr not in cost_so_far or new_g < cost_so_far[nbr]:
+                cost_so_far[nbr] = new_g
+                parent[nbr] = current
+                tiebreaker += 1
+                new_f = new_g + heuristic(nbr, goal)
+                heapq.heappush(pq, (new_f, tiebreaker, new_g, nbr))
+    return False, parent        #no goal found
 
-def print_debug_output(grid_rows, grid_cols, grid_map, path_nodes, visit_tracker, first_time_visit, last_time_visit):
-    # print path onto grid
-    print("Path:")
-    if path_nodes is None:
+def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit):
+    print("path:")
+    if path_positions is None:
         print("null")
     else:
-        path_set = set(path_nodes)  # convert the path into a set so that lookup is O(1)
-        for row_idx in range(grid_rows):
-            row_display = []
-            for col_idx in range(grid_cols):
-                if grid_map[row_idx][col_idx] == 'X':
-                    row_display.append('X')  # Keep obstacles as 'X'
+        path_set = set(path_positions)
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if M[r][c] == 'X':
+                    row.append('X')
                 else:
-                    row_display.append('*' if (row_idx+1, col_idx+1) in path_set else grid_map[row_idx][col_idx])
-            print(" ".join(row_display))
-    
-    # print the vists of each cell
-    print("# Visits:")
-    for row_idx in range(grid_rows):
-        row_display = []
-        for col_idx in range(grid_cols):
-            if grid_map[row_idx][col_idx] == 'X':
-                row_display.append('X')
+                    row.append('*' if (r+1, c+1) in path_set else M[r][c])
+            print(" ".join(row))
+    print("#visits:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
             else:
-                row_display.append(str(visit_tracker[row_idx][col_idx]) if visit_tracker[row_idx][col_idx] != 0 else '.')
-        print(" ".join(row_display))
-    
-    # print the first time visit for each cell
-    print("First Visit:")
-    for row_idx in range(grid_rows):
-        row_display = []
-        for col_idx in range(grid_cols):
-            if grid_map[row_idx][col_idx] == 'X':
-                row_display.append('X')
+                row.append(str(visit_count[r][c]) if visit_count[r][c] != 0 else '.')
+        print(" ".join(row))
+    print("first visit:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
             else:
-                row_display.append(str(first_time_visit[row_idx][col_idx]) if first_time_visit[row_idx][col_idx] != 0 else '.')
-        print(" ".join(row_display))
-    
-    # print last visit for each cell
-    print("Last Visit:")
-    for row_idx in range(grid_rows):
-        row_display = []
-        for col_idx in range(grid_cols):
-            if grid_map[row_idx][col_idx] == 'X':
-                row_display.append('X')
+                row.append(str(first_visit[r][c]) if first_visit[r][c] != 0 else '.')
+        print(" ".join(row))
+    print("last visit:")
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            if M[r][c] == 'X':
+                row.append('X')
             else:
-                row_display.append(str(last_time_visit[row_idx][col_idx]) if last_time_visit[row_idx][col_idx] != 0 else '.')
-        print(" ".join(row_display))
+                row.append(str(last_visit[r][c]) if last_visit[r][c] != 0 else '.')
+        print(" ".join(row))
 
-def print_release_output(grid_rows, grid_cols, grid_map, path_nodes):
-    # Print the final path only
-    if path_nodes is None:
+def print_release_output(rows, cols, M, path_positions):
+    if path_positions is None:
         print("null")
     else:
-        path_set = set(path_nodes)  # Convert into set for O(1) lookup
-        for row_idx in range(grid_rows):
-            row_display = []
-            for col_idx in range(grid_cols):
-                if grid_map[row_idx][col_idx] == 'X':
-                    row_display.append('X')  # Keep obstacles as 'X'
+        path_set = set(path_positions)
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                if M[r][c] == 'X':
+                    row.append('X')
                 else:
-                    row_display.append('*' if (row_idx+1, col_idx+1) in path_set else grid_map[row_idx][col_idx])
-            print(" ".join(row_display))
+                    row.append('*' if (r+1, c+1) in path_set else M[r][c])
+            print(" ".join(row))
 
 def main():
     if len(sys.argv) < 4:
@@ -229,15 +223,15 @@ def main():
             sys.exit(1)
         heuristic_name = sys.argv[4]
         if heuristic_name == 'euclidean':
-            heuristic_fn = euclidean_distance
+            heuristic_fn = euclidean_heuristic
         elif heuristic_name == 'manhattan':
-            heuristic_fn = manhattan_distance
+            heuristic_fn = manhattan_heuristic
         else:
             print("Unknown heuristic. Use 'euclidean' or 'manhattan'.")
             sys.exit(1)
     else:
         heuristic_fn = None
-    rows, cols, start, goal, M = load_map_data(mapfile)
+    rows, cols, start, goal, M = parse_map_file(mapfile)
     visit_count = np.zeros((rows, cols), dtype=int)
     first_visit = np.zeros((rows, cols), dtype=int)
     last_visit = np.zeros((rows, cols), dtype=int)
@@ -250,7 +244,7 @@ def main():
     else:
         print("Unknown algorithm. Use 'bfs', 'ucs', or 'astar'.")
         sys.exit(1)
-    path_positions = backtrack_path(parent, start, goal) if found else None
+    path_positions = reconstruct_path(parent, start, goal) if found else None
     if mode == 'debug':
         print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit)
     else:
