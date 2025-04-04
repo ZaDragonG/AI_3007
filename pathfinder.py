@@ -90,8 +90,8 @@ def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
 def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit):
     #set variables, queue, visted
     pq = []
-    tiebreaker = 0
-    heapq.heappush(pq, (0, tiebreaker, start))
+    tie_breaker = 0
+    heapq.heappush(pq, (0, tie_breaker, start))
     parent = {start: None}
     cost_so_far = {start: 0}
     count = 0
@@ -101,12 +101,12 @@ def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
     if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
     last_visit[r-1][c-1] = count      
     while pq:                   #iterate through minheap
-        curr_cost, _, current = heapq.heappop(pq)
+        current_cost, _, current = heapq.heappop(pq)
         if current == goal: return True, parent     #found goal, otherwise keep iterating thorugh heap
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
             step = cost_of_movement(M, cr, cc, nbr[0], nbr[1])
-            new_cost = curr_cost + step
+            new_cost = current_cost + step
             r, c = nbr
             count += 1
             visit_count[r-1][c-1] += 1
@@ -115,25 +115,25 @@ def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
             if nbr not in cost_so_far or new_cost < cost_so_far[nbr]:
                 cost_so_far[nbr] = new_cost
                 parent[nbr] = current
-                tiebreaker += 1
-                heapq.heappush(pq, (new_cost, tiebreaker, nbr))
+                tie_breaker += 1
+                heapq.heappush(pq, (new_cost, tie_breaker, nbr))
     return False, parent        #goal not found
 
 #a* algo
-def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit, last_visit):
+def astar_search(rows, cols, M, start, goal, heuristic, visit_count, visit_first, visit_last):
     #set up varibales
     pq = []
-    tiebreaker = 0
+    tie_breaker = 0
     h = heuristic(start, goal)
-    heapq.heappush(pq, (h, tiebreaker, 0, start))
+    heapq.heappush(pq, (h, tie_breaker, 0, start))
     parent = {start: None}
-    cost_so_far = {start: 0}
+    cost_till_now = {start: 0}
     count = 0
     r, c = start
     count += 1
     visit_count[r-1][c-1] += 1
-    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
-    last_visit[r-1][c-1] = count
+    if visit_first[r-1][c-1] == 0: visit_first[r-1][c-1] = count
+    visit_last[r-1][c-1] = count
     while pq:       #itetate through heap
         f, _, g, current = heapq.heappop(pq)
         if current == goal: return True, parent         #goal found, otherwise keep iterating through heap
@@ -144,29 +144,29 @@ def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit
             r, c = nbr
             count += 1
             visit_count[r-1][c-1] += 1
-            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
-            last_visit[r-1][c-1] = count
-            if nbr not in cost_so_far or new_g < cost_so_far[nbr]:
-                cost_so_far[nbr] = new_g
+            if visit_first[r-1][c-1] == 0: visit_first[r-1][c-1] = count
+            visit_last[r-1][c-1] = count
+            if nbr not in cost_till_now or new_g < cost_till_now[nbr]:
+                cost_till_now[nbr] = new_g
                 parent[nbr] = current
-                tiebreaker += 1
+                tie_breaker += 1
                 new_f = new_g + heuristic(nbr, goal)
-                heapq.heappush(pq, (new_f, tiebreaker, new_g, nbr))
+                heapq.heappush(pq, (new_f, tie_breaker, new_g, nbr))
     return False, parent        #no goal found
 
-def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit):
+def print_debug_output(rows, cols, M, path_pos, visit_num, visit_first, visit_last):
     print("path:")
-    if path_positions is None:
+    if path_pos is None:
         print("null")
     else:
-        path_set = set(path_positions)
+        set_path = set(path_pos)
         for r in range(rows):
             row = []
             for c in range(cols):
                 if M[r][c] == 'X':
                     row.append('X')
                 else:
-                    row.append('*' if (r+1, c+1) in path_set else M[r][c])
+                    row.append('*' if (r+1, c+1) in set_path else M[r][c])
             print(" ".join(row))
     print("#visits:")
     for r in range(rows):
@@ -175,7 +175,7 @@ def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, 
             if M[r][c] == 'X':
                 row.append('X')
             else:
-                row.append(str(visit_count[r][c]) if visit_count[r][c] != 0 else '.')
+                row.append(str(visit_num[r][c]) if visit_num[r][c] != 0 else '.')
         print(" ".join(row))
     print("first visit:")
     for r in range(rows):
@@ -184,7 +184,7 @@ def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, 
             if M[r][c] == 'X':
                 row.append('X')
             else:
-                row.append(str(first_visit[r][c]) if first_visit[r][c] != 0 else '.')
+                row.append(str(visit_first[r][c]) if visit_first[r][c] != 0 else '.')
         print(" ".join(row))
     print("last visit:")
     for r in range(rows):
@@ -193,7 +193,8 @@ def print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, 
             if M[r][c] == 'X':
                 row.append('X')
             else:
-                row.append(str(last_visit[r][c]) if last_visit[r][c] != 0 else '.')
+                row.append(str(
+                    [r][c]) if visit_last[r][c] != 0 else '.')
         print(" ".join(row))
 
 def print_release_output(rows, cols, M, path_positions):
@@ -233,22 +234,22 @@ def main():
         heuristic_fn = None
     rows, cols, start, goal, M = load_map_data(mapfile)
     visit_count = np.zeros((rows, cols), dtype=int)
-    first_visit = np.zeros((rows, cols), dtype=int)
-    last_visit = np.zeros((rows, cols), dtype=int)
+    visit_first = np.zeros((rows, cols), dtype=int)
+    visit_last = np.zeros((rows, cols), dtype=int)
     if algorithm == 'bfs':
-        found, parent = bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
+        found, parent = bfs_search(rows, cols, M, start, goal, visit_count, visit_first, visit_last)
     elif algorithm == 'ucs':
-        found, parent = ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
+        found, parent = ucs_search(rows, cols, M, start, goal, visit_count, visit_first, visit_last)
     elif algorithm == 'astar':
-        found, parent = astar_search(rows, cols, M, start, goal, heuristic_fn, visit_count, first_visit, last_visit)
+        found, parent = astar_search(rows, cols, M, start, goal, heuristic_fn, visit_count, visit_first, visit_last)
     else:
         print("Unknown algorithm. Use 'bfs', 'ucs', or 'astar'.")
         sys.exit(1)
-    path_positions = backtrack_path(parent, start, goal) if found else None
+    path_pos = backtrack_path(parent, start, goal) if found else None
     if mode == 'debug':
-        print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit)
+        print_debug_output(rows, cols, M, path_pos, visit_count, visit_first, visit_last)
     else:
-        print_release_output(rows, cols, M, path_positions)
+        print_release_output(rows, cols, M, path_pos)
 
 if __name__ == "__main__":
     main()
