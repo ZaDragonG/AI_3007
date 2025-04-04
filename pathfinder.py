@@ -10,7 +10,7 @@ STUDENT_ID = 'a1889102'
 DEGREE = 'UG'
 
 #Function to parse through the input map and get the necessary info
-def parse_map_file(filepath):
+def load_map_data(filepath):
     with open(filepath, 'r') as f:
 
         rows, cols = map(int, f.readline().strip().split()) #grid size
@@ -23,10 +23,10 @@ def parse_map_file(filepath):
     return rows, cols, start, goal, M
 
 #Function to calc the cost to move from one point to another
-def cost_function(M, r1, c1, r2, c2):
-    elev1 = int(M[r1-1][c1-1])  # elevation of first point
-    elev2 = int(M[r2-1][c2-1])  #elevation of second point
-    return 1 + max(0, elev2 - elev1)
+def cost_of_movement(M, r1, c1, r2, c2):
+    elevation1 = int(M[r1-1][c1-1])  # elevation of first point
+    elevation2 = int(M[r2-1][c2-1])  #elevation of second point
+    return 1 + max(0, elevation2 - elevation1)
 
 #function for th emanhattan heuristic for a* algo
 def manhattan_heuristic(current, goal):
@@ -39,7 +39,7 @@ def euclidean_heuristic(current, goal):
     return math.sqrt((r2 - r1)**2 + (c2 - c1)**2)
 
 #function to reconstruct the path from the start to the goal using the parent cell
-def reconstruct_path(parent, start, goal):
+def backtrack_path(parent, start, goal):
     if goal not in parent: return None  #no path is found since there is no goal
     path = []
     curr = goal
@@ -50,9 +50,9 @@ def reconstruct_path(parent, start, goal):
 
 #function to get the vaild neighbour cells that are n,e,s,w from the current node
 def neighbors(r, c, rows, cols, M):
-    cand = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)] #adding one or subtracting one from the cell coords
+    directions = [(r-1, c), (r+1, c), (r, c-1), (r, c+1)] #adding one or subtracting one from the cell coords
     valid = []
-    for rr, cc in cand:
+    for rr, cc in directions:
         if 1 <= rr <= rows and 1 <= cc <= cols:
             if M[rr-1][cc-1] != 'X':    #don't go onto cells with 'X'
                 valid.append((rr, cc))
@@ -65,22 +65,22 @@ def bfs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
     q = deque()
     q.append(start)
     parent = {start: None}
-    counter = 0
+    count = 0
     r, c = start
-    counter += 1
+    count += 1
     visit_count[r-1][c-1] += 1
-    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-    last_visit[r-1][c-1] = counter
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+    last_visit[r-1][c-1] = count
     while q:                        #iterate through the queue
         current = q.popleft()
         if current == goal: return True, parent     #check for goal, otherwise keep iterating
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
             r, c = nbr
-            counter += 1
+            count += 1
             visit_count[r-1][c-1] += 1
-            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-            last_visit[r-1][c-1] = counter
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+            last_visit[r-1][c-1] = count
             if nbr not in parent:
                 parent[nbr] = current
                 q.append(nbr)
@@ -94,24 +94,24 @@ def ucs_search(rows, cols, M, start, goal, visit_count, first_visit, last_visit)
     heapq.heappush(pq, (0, tiebreaker, start))
     parent = {start: None}
     cost_so_far = {start: 0}
-    counter = 0
+    count = 0
     r, c = start
-    counter += 1
+    count += 1
     visit_count[r-1][c-1] += 1
-    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-    last_visit[r-1][c-1] = counter      
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+    last_visit[r-1][c-1] = count      
     while pq:                   #iterate through minheap
         curr_cost, _, current = heapq.heappop(pq)
         if current == goal: return True, parent     #found goal, otherwise keep iterating thorugh heap
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
-            step = cost_function(M, cr, cc, nbr[0], nbr[1])
+            step = cost_of_movement(M, cr, cc, nbr[0], nbr[1])
             new_cost = curr_cost + step
             r, c = nbr
-            counter += 1
+            count += 1
             visit_count[r-1][c-1] += 1
-            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-            last_visit[r-1][c-1] = counter
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+            last_visit[r-1][c-1] = count
             if nbr not in cost_so_far or new_cost < cost_so_far[nbr]:
                 cost_so_far[nbr] = new_cost
                 parent[nbr] = current
@@ -128,24 +128,24 @@ def astar_search(rows, cols, M, start, goal, heuristic, visit_count, first_visit
     heapq.heappush(pq, (h, tiebreaker, 0, start))
     parent = {start: None}
     cost_so_far = {start: 0}
-    counter = 0
+    count = 0
     r, c = start
-    counter += 1
+    count += 1
     visit_count[r-1][c-1] += 1
-    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-    last_visit[r-1][c-1] = counter
+    if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+    last_visit[r-1][c-1] = count
     while pq:       #itetate through heap
         f, _, g, current = heapq.heappop(pq)
         if current == goal: return True, parent         #goal found, otherwise keep iterating through heap
         cr, cc = current
         for nbr in neighbors(cr, cc, rows, cols, M):
-            step = cost_function(M, cr, cc, nbr[0], nbr[1])
+            step = cost_of_movement(M, cr, cc, nbr[0], nbr[1])
             new_g = g + step
             r, c = nbr
-            counter += 1
+            count += 1
             visit_count[r-1][c-1] += 1
-            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = counter
-            last_visit[r-1][c-1] = counter
+            if first_visit[r-1][c-1] == 0: first_visit[r-1][c-1] = count
+            last_visit[r-1][c-1] = count
             if nbr not in cost_so_far or new_g < cost_so_far[nbr]:
                 cost_so_far[nbr] = new_g
                 parent[nbr] = current
@@ -231,7 +231,7 @@ def main():
             sys.exit(1)
     else:
         heuristic_fn = None
-    rows, cols, start, goal, M = parse_map_file(mapfile)
+    rows, cols, start, goal, M = load_map_data(mapfile)
     visit_count = np.zeros((rows, cols), dtype=int)
     first_visit = np.zeros((rows, cols), dtype=int)
     last_visit = np.zeros((rows, cols), dtype=int)
@@ -244,7 +244,7 @@ def main():
     else:
         print("Unknown algorithm. Use 'bfs', 'ucs', or 'astar'.")
         sys.exit(1)
-    path_positions = reconstruct_path(parent, start, goal) if found else None
+    path_positions = backtrack_path(parent, start, goal) if found else None
     if mode == 'debug':
         print_debug_output(rows, cols, M, path_positions, visit_count, first_visit, last_visit)
     else:
